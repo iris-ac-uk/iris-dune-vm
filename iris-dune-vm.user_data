@@ -38,6 +38,25 @@ cvmfs:
         CVMFS_HTTP_PROXY: ##user_data_option_cvmfs_proxy##
 write_files:
   - owner: root:root
+    path: /etc/glideinwms/glidein-pilot-dune-vm.ini
+    permissions: '0644'
+    content: |
+        [DEFAULT]
+        contextualize_protocol = CERNVM
+        default_max_lifetime = 172800
+        cernvm_user_data_file = /tmp/glideinwms-user-data
+        
+        [GLIDEIN_USER]
+        user_name = glidein_pilot
+        user_home = /home/glidein_pilot
+        
+        [DIRECTORIES]
+        pre_script_dir = /usr/libexec/glideinwms_pilot/PRE
+        post_script_dir = /usr/libexec/glideinwms_pilot/POST
+        
+        [CUSTOM_ENVIRONMENT]
+
+  - owner: root:root
     path: /etc/profile.d/mjf.sh
     permissions: '0644'
     content: |

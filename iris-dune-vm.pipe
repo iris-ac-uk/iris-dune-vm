@@ -11,10 +11,10 @@
     "min_wallclock_seconds": 86400,
     "max_wallclock_seconds": 99999,
     "max_processors": 1,
-    "root_image": "https://repo.gridpp.ac.uk/iris/iris-dune-vm/cernvm3.iso",
+    "root_image": "https://repo.iris.ac.uk/iris-dune-vm/cernvm4.iso",
     "suffix": "prod",
     "target_share": 1.0,
-    "user_data": "https://repo.gridpp.ac.uk/iris/iris-dune-vm/iris-dune-vm.user_data",
+    "user_data": "https://repo.iris.ac.uk/ris-dune-vm/user_data_vm",
     "user_data_file_hostcert": "hostcert.pem",
     "user_data_file_hostkey": "hostkey.pem"
    }
