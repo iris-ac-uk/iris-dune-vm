@@ -90,7 +90,7 @@ esac
 cat <<EOF > /scratch/pilot/pilot.sh
 /scratch/pilot/WORKDIR/glidein_startup.sh < /dev/null \
 -v std \
--name gfactory_instance \
+-name ##user_data_machine_hostname##_$job_id \
 -entry $ENTRY \
 -clientname gpfrontend01-fnal-gov_gWMSFrontend.dune_cern \
 -schedd schedd_glideins4@gfactory-2.opensciencegrid.org \

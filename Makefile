@@ -1,3 +1,3 @@
-user_data_vm: files-to-user_data_vm main-cloud-config main-script ucernvm comments glidein_startup.sh condorjob.sh
+user_data_vm: files-to-user_data_vm main-cloud-config main-script ucernvm comments glidein_startup.sh
 	./files-to-user_data_vm
 
