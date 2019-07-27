@@ -1,0 +1,7 @@
+#  
+# iris-dune-vm:  user_data template file for use with Vacuum
+# based systems (Vac,Vcycle).
+# This file should normally be processed by Vac (version 3.0.0 onwards) or
+# Vcycle (1.0.0 onwards) internally. 
+# Andrew.McNab@cern.ch July 2019
+# 

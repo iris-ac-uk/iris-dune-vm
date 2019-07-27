@@ -3,6 +3,7 @@
   "machinetypes":
   [
    {
+    "accounting_fqan": "/dune/Role=NULL/Capability=NULL",
     "backoff_seconds": 600,
     "fizzle_seconds": 600,
     "heartbeat_file": "heartbeat",
@@ -12,11 +13,11 @@
     "max_wallclock_seconds": 99999,
     "max_processors": 1,
     "root_image": "https://repo.iris.ac.uk/iris-dune-vm/cernvm4.iso",
-    "suffix": "prod",
+    "suffix": "vm-prod",
     "target_share": 1.0,
-    "user_data": "https://repo.iris.ac.uk/ris-dune-vm/user_data_vm",
-    "user_data_file_hostcert": "hostcert.pem",
-    "user_data_file_hostkey": "hostkey.pem"
+    "user_data": "https://repo.iris.ac.uk/iris-dune-vm/user_data_vm",
+    "user_data_proxy": "false",
+    "user_data_file_x509_proxy": "dune-pilot-proxy.pem"
    }
   ]
 }

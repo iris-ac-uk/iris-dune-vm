@@ -1,0 +1,171 @@
+#!/bin/sh
+if [ "$1" == "stop" ] ; then exit; fi 
+
+mkdir -p /var/spool/joboutputs
+chmod ugo+rwxt /var/spool/joboutputs/
+
+(
+# Cloud Init should do this automatically but something has changed since cernvm3 -> cernvm4
+ls -l /root/.ssh/authorized_keys
+curl http://169.254.169.254/2009-04-04/meta-data/public-keys/0/openssh-key > /root/.ssh/authorized_keys
+echo >> /root/.ssh/authorized_keys
+ls -l /root/.ssh/authorized_keys
+
+cat <<EOF >/tmp/x509proxy.pem
+##user_data_option_x509_proxy##
+EOF
+chown root.root /tmp/x509proxy.pem
+chmod 0400 /tmp/x509proxy.pem
+openssl x509 -in /tmp/x509proxy.pem -text > /var/spool/joboutputs/x509proxy.cert.pem
+
+. /root/mjf.sh
+export job_id=`python -c "import urllib ; print urllib.urlopen('$JOBFEATURES/job_id').read().strip()"`
+
+# Send a heartbeat every 5 minutes
+(
+while true
+do
+  echo `cut -f1-3 -d' ' /proc/loadavg` `cat /proc/uptime` >/var/spool/joboutputs/heartbeat
+  date --utc +"%Y-%m-%d %H:%M:%S %Z Uploading heartbeat"
+  /usr/bin/curl --max-time 30 --capath /etc/grid-security/certificates/ --cert /tmp/x509proxy.pem --cacert /tmp/x509proxy.pem --location --upload-file /var/spool/joboutputs/heartbeat '##user_data_joboutputs_url##/heartbeat'
+  date --utc +"%Y-%m-%d %H:%M:%S %Z curl returns $?"
+  sleep 300
+done
+) >/var/log/heartbeat.log 2>&1 &
+
+# Remove docker command etc since we don't start docker
+rpm --nodeps -e docker-cernvm
+
+# Hard links to Condor log files are put here, so they survive Condor attempting to delete them
+mkdir -p /scratch/joblogs
+chmod ugo+wxt,u+r,go-r /scratch/joblogs
+( 
+while :
+do
+sleep 120
+ln -f /scratch/pilot/WORKDIR/glide_*/log/*Log /scratch/joblogs/
+done
+) &
+
+# Set up standard WLCG WN things
+ln -s /cvmfs/grid.cern.ch/etc/grid-security/vomses /etc/vomses
+ln -s /cvmfs/grid.cern.ch/etc/grid-security/vomsdir /etc/grid-security/vomsdir
+#mkdir -p /etc/vomses
+#echo '"dune" "voms1.fnal.gov" "15042" "/DC=org/DC=incommon/C=US/ST=IL/L=Batavia/O=Fermi Research Alliance/OU=Fermilab/CN=voms1.fnal.gov" "dune" "24"' >/etc/vomses/dune-voms1.fnal.gov
+#echo '"dune" "voms2.fnal.gov" "15042" "/DC=org/DC=incommon/C=US/ST=IL/L=Batavia/O=Fermi Research Alliance/OU=Fermilab/CN=voms2.fnal.gov" "dune" "24"' >/etc/vomses/dune-voms2.fnal.gov
+ln -s /cvmfs/grid.cern.ch/umd-c7wn-latest/etc/profile.d/setup-c7-wn-example.sh /etc/profile.d/
+echo "export JOB_ID=$job_id QUEUE=##user_data_machinetype## GLOBUS_LOCATION=/cvmfs/grid.cern.ch/umd-c7wn-latest/usr" >/etc/profile.d/pilot.sh
+
+# Convert the generic X.509 proxy we have into a DUNE pilot proxy
+# by adding VOMS ACs to X.509 proxy 
+cp /tmp/x509proxy.pem /tmp/x509vomsproxy.pem
+chmod 0600 /tmp/x509vomsproxy.pem
+. /etc/profile.d/setup-c7-wn-example.sh
+export X509_USER_PROXY=/tmp/x509vomsproxy.pem
+voms-proxy-init -noregen -valid 168:0 -voms dune:/dune/Role=pilot
+voms-proxy-info -file $X509_USER_PROXY
+
+# Set up the pilot user which runs the pilot script
+useradd pilot
+mkdir -p /scratch/pilot/WORKDIR
+cp /tmp/glidein_startup.sh /scratch/pilot/WORKDIR
+#touch /scratch/pilot/.gahp_complete
+
+# Map Vac/Vcycle spaces to glidein entry names
+case "##user_data_space##" in
+*.manchester.ac.uk)
+  ENTRY=UBoone_T2_UK_Manchester_ce02 \
+  ;;
+*.ph.bham.ac.uk)
+  ENTRY=Birmingham
+  ;;
+*.gla.scotgrid.ac.uk)
+  ENTRY=Glasgow
+  ;;
+*.hep.phy.cam.ac.uk)
+  ENTRY=Cambridge
+  ;;
+esac
+
+cat <<EOF > /scratch/pilot/pilot.sh
+/scratch/pilot/WORKDIR/glidein_startup.sh < /dev/null \
+-v std \
+-name gfactory_instance \
+-entry $ENTRY \
+-clientname gpfrontend01-fnal-gov_gWMSFrontend.dune_cern \
+-schedd schedd_glideins4@gfactory-2.opensciencegrid.org \
+-proxy None \
+-factory OSG \
+-web http://gfactory-2.opensciencegrid.org/factory/stage \
+-sign e995388489352c8470dfd574e0868d56fbac1462 \
+-signentry 13b2b07c86ee23f343e4b316a2ee3685fadc1885 \
+-signtype sha1 \
+-descript description.j7pbIp.cfg \
+-descriptentry description.j7pbIp.cfg \
+-dir . \
+-param_GLIDEIN_Client gpfrontend01-fnal-gov_gWMSFrontend.dune_cern \
+-submitcredid 67716 \
+-slotslayout fixed \
+-clientweb http://gpfrontend01.fnal.gov:8319/vofrontend/stage \
+-clientsign 8152d89119d4a8599e98fa6ad69f3cbffc16b6e8 \
+-clientsigntype sha1 \
+-clientdescript description.j7ifrG.cfg \
+-clientgroup dune_cern \
+-clientwebgroup http://gpfrontend01.fnal.gov:8319/vofrontend/stage/group_dune_cern \
+-clientsigngroup c76a2c721e5a23651e64a74f8ebc6b2b7fa28023 \
+-clientdescriptgroup description.j7ifrG.cfg \
+-param_CONDOR_VERSION 8.dot,6.dot,3 \
+-param_GLIDEIN_Glexec_Use NEVER \
+-param_GLIDEIN_Job_Max_Time 34800 \
+-param_SLOT_WEIGHT "ifThenElse.open,.nbsp,.open,Cpus.nbsp,.gt,.eq,.nbsp,ceiling.open,Memory/2048.dot,0.close,.close,.comma,.nbsp,Cpus.comma,.nbsp,Memory/2048.dot,0.close," \
+-param_GLIDECLIENT_Rank 1 \
+-param_GLIDEIN_Report_Failed NEVER \
+-param_MIN_DISK_GBS 1 \
+-param_GLIDEIN_Monitoring_Enabled False \
+-param_CONDOR_OS default \
+-param_HAS_USAGE_MODEL OFFSITE \
+-param_UPDATE_COLLECTOR_WITH_TCP True \
+-param_GLIDECLIENT_ReqNode gfactory.minus,2.dot,opensciencegrid.dot,org \
+-param_USE_MATCH_AUTH True \
+-param_CONDOR_ARCH default \
+-param_FERMIHTC_DOCKER_CAPABLE False \
+-param_GLIDEIN_Collector "gpcollector04.dot,fnal.dot,gov.colon,9620.minus,9625.semicolon,gpcollector03.dot,fnal.dot,gov.colon,9620.minus,9625" \
+-cluster 496811 \
+-subcluster 0 \
+1>/var/spool/joboutputs/glidein_startup.sh.stdout \
+2>/var/spool/joboutputs/glidein_startup.sh.stderr
+EOF
+chmod +x /scratch/pilot/pilot.sh /scratch/pilot/WORKDIR/glidein_startup.sh
+chown -R pilot.pilot /scratch/pilot /tmp/x509vomsproxy.pem
+
+# Run the pilot script whcih in turn runs glidein_startup.sh
+/usr/bin/sudo -i -n -u pilot sh -c \
+ 'cd /scratch/pilot/WORKDIR ; export X509_USER_PROXY=/tmp/x509vomsproxy.pem ; /scratch/pilot/pilot.sh' 2>&1
+
+### Always try to make simple HTCondor shutdown messages
+if [ ! -s /scratch/joblogs/StartdHistoryLog ] ; then
+  echo '300 No HTCondor job to run' > /var/spool/joboutputs/shutdown_message
+else
+  echo '200 Success' > /var/spool/joboutputs/shutdown_message
+fi
+
+# Time to upload and shutdown
+cd /var/spool/joboutputs
+cp -f /var/log/cloud-init*.log \
+      /var/log/boot.log \
+      /var/log/messages \
+      /scratch/joblogs/* \
+      .
+for i in * 
+do 
+  curl --capath /etc/grid-security/certificates/ --cert /tmp/x509proxy.pem --cacert /tmp/x509proxy.pem --location --upload-file "$i" '##user_data_joboutputs_url##/'
+  curl --capath /etc/grid-security/certificates/ --cert /tmp/x509proxy.pem --cacert /tmp/x509proxy.pem --location --upload-file "$i" "https://depo.gridpp.ac.uk/hosts/##user_data_space##/##user_data_machinetype##/##user_data_machine_hostname##/$job_id/"
+done
+
+# Try normal shutdown
+shutdown -h now
+sleep 60
+# Otherwise instant shutdown
+echo o > /proc/sysrq-trigger
+
+) >/var/spool/joboutputs/shellscript.log 2>&1 &
