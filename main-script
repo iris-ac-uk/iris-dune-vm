@@ -74,16 +74,20 @@ cp /tmp/glidein_startup.sh /scratch/pilot/WORKDIR
 # Map Vac/Vcycle spaces to glidein entry names
 case "##user_data_space##" in
 *.manchester.ac.uk)
-  ENTRY=UBoone_T2_UK_Manchester_ce02 \
+  ENTRY=UBoone_T2_UK_Manchester_ce02 
+  CLIENTGROUP=dune_cern
   ;;
 *.ph.bham.ac.uk)
   ENTRY=Birmingham
+  CLIENTGROUP=dune
   ;;
 *.gla.scotgrid.ac.uk)
   ENTRY=Glasgow
+  CLIENTGROUP=dune
   ;;
 *.hep.phy.cam.ac.uk)
   ENTRY=Cambridge
+  CLIENTGROUP=dune
   ;;
 esac
 
@@ -92,7 +96,7 @@ cat <<EOF > /scratch/pilot/pilot.sh
 -v std \
 -name ##user_data_machine_hostname##_$job_id \
 -entry $ENTRY \
--clientname gpfrontend01-fnal-gov_gWMSFrontend.dune_cern \
+-clientname gpfrontend01-fnal-gov_gWMSFrontend.$CLIENTGROUP \
 -schedd schedd_glideins4@gfactory-2.opensciencegrid.org \
 -proxy None \
 -factory OSG \
@@ -103,15 +107,15 @@ cat <<EOF > /scratch/pilot/pilot.sh
 -descript description.j7pbIp.cfg \
 -descriptentry description.j7pbIp.cfg \
 -dir . \
--param_GLIDEIN_Client gpfrontend01-fnal-gov_gWMSFrontend.dune_cern \
+-param_GLIDEIN_Client gpfrontend01-fnal-gov_gWMSFrontend.$CLIENTGROUP \
 -submitcredid 67716 \
 -slotslayout fixed \
 -clientweb http://gpfrontend01.fnal.gov:8319/vofrontend/stage \
 -clientsign 8152d89119d4a8599e98fa6ad69f3cbffc16b6e8 \
 -clientsigntype sha1 \
 -clientdescript description.j7ifrG.cfg \
--clientgroup dune_cern \
--clientwebgroup http://gpfrontend01.fnal.gov:8319/vofrontend/stage/group_dune_cern \
+-clientgroup $CLIENTGROUP \
+-clientwebgroup http://gpfrontend01.fnal.gov:8319/vofrontend/stage/group_$CLIENTGROUP \
 -clientsigngroup c76a2c721e5a23651e64a74f8ebc6b2b7fa28023 \
 -clientdescriptgroup description.j7ifrG.cfg \
 -param_CONDOR_VERSION 8.dot,6.dot,3 \

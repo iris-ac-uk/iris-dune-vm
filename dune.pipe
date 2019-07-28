@@ -4,8 +4,8 @@
   [
    {
     "accounting_fqan": "/dune/Role=NULL/Capability=NULL",
-    "backoff_seconds": 600,
-    "fizzle_seconds": 600,
+    "backoff_seconds": 3600,
+    "fizzle_seconds": 2700,
     "heartbeat_file": "heartbeat",
     "heartbeat_seconds": 600,
     "machine_model": "cernvm3",
