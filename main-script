@@ -77,21 +77,15 @@ case "##user_data_space##" in
   ENTRY=UBoone_T2_UK_Manchester_ce02 
   CLIENTGROUP=dune_cern
   ;;
-*.ph.bham.ac.uk)
-  ENTRY=Birmingham
-  CLIENTGROUP=dune
-  ;;
-*.gla.scotgrid.ac.uk)
-  ENTRY=Glasgow
-  CLIENTGROUP=dune
-  ;;
-*.hep.phy.cam.ac.uk)
-  ENTRY=Cambridge
-  CLIENTGROUP=dune
+*)
+  ENTRY=''
+  CLIENTGROUP=''
   ;;
 esac
 
 cat <<EOF > /scratch/pilot/pilot.sh
+cd /scratch/pilot/WORKDIR
+export X509_USER_PROXY=/tmp/x509vomsproxy.pem
 /scratch/pilot/WORKDIR/glidein_startup.sh < /dev/null \
 -v std \
 -name ##user_data_machine_hostname##_$job_id \
@@ -142,15 +136,19 @@ EOF
 chmod +x /scratch/pilot/pilot.sh /scratch/pilot/WORKDIR/glidein_startup.sh
 chown -R pilot.pilot /scratch/pilot /tmp/x509vomsproxy.pem
 
-# Run the pilot script whcih in turn runs glidein_startup.sh
-/usr/bin/sudo -i -n -u pilot sh -c \
- 'cd /scratch/pilot/WORKDIR ; export X509_USER_PROXY=/tmp/x509vomsproxy.pem ; /scratch/pilot/pilot.sh' 2>&1
+if [ "$ENTRY" != "" ] ; then
+  # Run the pilot script which in turn runs glidein_startup.sh
+  /usr/bin/sudo -i -n -u pilot /scratch/pilot/pilot.sh 2>&1
 
-### Always try to make simple HTCondor shutdown messages
-if [ ! -s /scratch/joblogs/StartdHistoryLog ] ; then
-  echo '300 No HTCondor job to run' > /var/spool/joboutputs/shutdown_message
+  # Always try to make simple HTCondor shutdown messages
+  if [ ! -s /scratch/joblogs/StartdHistoryLog ] ; then
+    echo '300 No HTCondor job to run' > /var/spool/joboutputs/shutdown_message
+  else
+    echo '200 Success' > /var/spool/joboutputs/shutdown_message
+  fi
 else
-  echo '200 Success' > /var/spool/joboutputs/shutdown_message
+  # No hardcoded mapping of space to glideinWMS entry in the case...esac above
+  echo "400 No glideinWMS entry for ##user_data_space##" > /var/spool/joboutputs/shutdown_message
 fi
 
 # Time to upload and shutdown
