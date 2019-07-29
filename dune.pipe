@@ -9,13 +9,13 @@
     "heartbeat_file": "heartbeat",
     "heartbeat_seconds": 600,
     "machine_model": "cernvm3",
-    "min_wallclock_seconds": 86400,
-    "max_wallclock_seconds": 99999,
+    "min_wallclock_seconds": 172800,
+    "max_wallclock_seconds": 180000,
     "max_processors": 1,
-    "root_image": "https://repo.iris.ac.uk/iris-dune-vm/cernvm4.iso",
+    "root_image": "https://repo.iris.ac.uk/dune/iris-dune-vm/cernvm4.iso",
     "suffix": "vm-prod",
     "target_share": 1.0,
-    "user_data": "https://repo.iris.ac.uk/iris-dune-vm/user_data_vm",
+    "user_data": "https://repo.iris.ac.uk/dune/iris-dune-vm/user_data_vm",
     "user_data_proxy": "false",
     "user_data_file_x509_proxy": "dune-pilot-proxy.pem"
    }

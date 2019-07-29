@@ -1,0 +1,35 @@
+#!/bin/sh
+
+(
+
+cat <<EOF
+web http://gfactory-2.opensciencegrid.org/factory/stage j7pbIp
+clientweb http://gpfrontend01.fnal.gov:8319/vofrontend/stage j7ifrG
+clientwebgroup http://gpfrontend01.fnal.gov:8319/vofrontend/stage/group_dune_cern j7ifrG
+EOF
+
+) | (
+
+while read name base_url random_code
+do
+
+  description_file=description.$random_code.cfg
+  rm -Rf /var/www/sites/repo.iris.ac.uk/dune/$name
+  mkdir /var/www/sites/repo.iris.ac.uk/dune/$name
+  cd /var/www/sites/repo.iris.ac.uk/dune/$name
+
+  wget -v $base_url/$description_file
+
+  signature_file=`grep '^signature' $description_file | head -1 | sed 's/^signature[[:space:]]*//'`
+
+  wget -v $base_url/$signature_file
+
+  grep -v '^#' $signature_file | (
+                                   while read sig filename
+                                   do
+                                     wget -v $base_url/$filename
+                                   done
+                                 )
+done
+
+)

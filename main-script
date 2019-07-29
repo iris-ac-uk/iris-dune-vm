@@ -20,6 +20,7 @@ openssl x509 -in /tmp/x509proxy.pem -text > /var/spool/joboutputs/x509proxy.cert
 
 . /root/mjf.sh
 export job_id=`python -c "import urllib ; print urllib.urlopen('$JOBFEATURES/job_id').read().strip()"`
+export wall_limit_secs=`python -c "import urllib ; print urllib.urlopen('$JOBFEATURES/wall_limit_secs').read().strip()"`
 
 # Send a heartbeat every 5 minutes
 (
@@ -43,7 +44,7 @@ chmod ugo+wxt,u+r,go-r /scratch/joblogs
 while :
 do
 sleep 120
-ln -f /scratch/pilot/WORKDIR/glide_*/log/*Log /scratch/joblogs/
+ln -f /scratch/pilot/$job_id/glide_*/log/*Log /scratch/joblogs/
 done
 ) &
 
@@ -67,8 +68,8 @@ voms-proxy-info -file $X509_USER_PROXY
 
 # Set up the pilot user which runs the pilot script
 useradd pilot
-mkdir -p /scratch/pilot/WORKDIR
-cp /tmp/glidein_startup.sh /scratch/pilot/WORKDIR
+mkdir -p /scratch/pilot/$job_id
+cp /tmp/glidein_startup.sh /scratch/pilot/$job_id
 #touch /scratch/pilot/.gahp_complete
 
 # Map Vac/Vcycle spaces to glidein entry names
@@ -84,9 +85,9 @@ case "##user_data_space##" in
 esac
 
 cat <<EOF > /scratch/pilot/pilot.sh
-cd /scratch/pilot/WORKDIR
+cd /scratch/pilot/$job_id
 export X509_USER_PROXY=/tmp/x509vomsproxy.pem
-/scratch/pilot/WORKDIR/glidein_startup.sh < /dev/null \
+/scratch/pilot/$job_id/glidein_startup.sh < /dev/null \
 -v std \
 -name ##user_data_machine_hostname##_$job_id \
 -entry $ENTRY \
@@ -114,7 +115,7 @@ export X509_USER_PROXY=/tmp/x509vomsproxy.pem
 -clientdescriptgroup description.j7ifrG.cfg \
 -param_CONDOR_VERSION 8.dot,6.dot,3 \
 -param_GLIDEIN_Glexec_Use NEVER \
--param_GLIDEIN_Job_Max_Time 34800 \
+-param_GLIDEIN_Job_Max_Time $wall_limit_secs \
 -param_SLOT_WEIGHT "ifThenElse.open,.nbsp,.open,Cpus.nbsp,.gt,.eq,.nbsp,ceiling.open,Memory/2048.dot,0.close,.close,.comma,.nbsp,Cpus.comma,.nbsp,Memory/2048.dot,0.close," \
 -param_GLIDECLIENT_Rank 1 \
 -param_GLIDEIN_Report_Failed NEVER \
@@ -133,7 +134,7 @@ export X509_USER_PROXY=/tmp/x509vomsproxy.pem
 1>/var/spool/joboutputs/glidein_startup.sh.stdout \
 2>/var/spool/joboutputs/glidein_startup.sh.stderr
 EOF
-chmod +x /scratch/pilot/pilot.sh /scratch/pilot/WORKDIR/glidein_startup.sh
+chmod +x /scratch/pilot/pilot.sh /scratch/pilot/$job_id/glidein_startup.sh
 chown -R pilot.pilot /scratch/pilot /tmp/x509vomsproxy.pem
 
 if [ "$ENTRY" != "" ] ; then
