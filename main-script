@@ -75,7 +75,12 @@ cp /tmp/glidein_startup.sh /scratch/pilot/$job_id
 # Map Vac/Vcycle spaces to glidein entry names
 case "##user_data_space##" in
 *.manchester.ac.uk)
-  ENTRY=UBoone_T2_UK_Manchester_ce02 
+#  ENTRY=UBoone_T2_UK_Manchester_ce02 
+#  SIGNENTRY=13b2b07c86ee23f343e4b316a2ee3685fadc1885
+  ENTRY=UBoone_T2_UK_Manchester_ce01
+  SIGNENTRY=2aeb31ff7e31dd4ee6dc01b988c9930a0668cadf
+#  ENTRY=UBoone_T2_UK_Manchester_vac02
+#  SIGNENTRY=68832e9c0d0d1dc447122944c92a04b0882b5dab
   CLIENTGROUP=dune_cern
   ;;
 *)
@@ -83,6 +88,10 @@ case "##user_data_space##" in
   CLIENTGROUP=''
   ;;
 esac
+
+# -web http://gfactory-2.opensciencegrid.org/factory/stage \
+# -clientweb http://gpfrontend01.fnal.gov:8319/vofrontend/stage \
+# -clientwebgroup http://gpfrontend01.fnal.gov:8319/vofrontend/stage/group_$CLIENTGROUP \
 
 cat <<EOF > /scratch/pilot/pilot.sh
 cd /scratch/pilot/$job_id
@@ -95,9 +104,9 @@ export X509_USER_PROXY=/tmp/x509vomsproxy.pem
 -schedd schedd_glideins4@gfactory-2.opensciencegrid.org \
 -proxy None \
 -factory OSG \
--web http://gfactory-2.opensciencegrid.org/factory/stage \
+-web http://repo.iris.ac.uk/dune/glidein/web \
 -sign e995388489352c8470dfd574e0868d56fbac1462 \
--signentry 13b2b07c86ee23f343e4b316a2ee3685fadc1885 \
+-signentry $SIGNENTRY \
 -signtype sha1 \
 -descript description.j7pbIp.cfg \
 -descriptentry description.j7pbIp.cfg \
@@ -105,12 +114,12 @@ export X509_USER_PROXY=/tmp/x509vomsproxy.pem
 -param_GLIDEIN_Client gpfrontend01-fnal-gov_gWMSFrontend.$CLIENTGROUP \
 -submitcredid 67716 \
 -slotslayout fixed \
--clientweb http://gpfrontend01.fnal.gov:8319/vofrontend/stage \
+-clientweb http://repo.iris.ac.uk/dune/glidein/clientweb \
 -clientsign 8152d89119d4a8599e98fa6ad69f3cbffc16b6e8 \
 -clientsigntype sha1 \
 -clientdescript description.j7ifrG.cfg \
 -clientgroup $CLIENTGROUP \
--clientwebgroup http://gpfrontend01.fnal.gov:8319/vofrontend/stage/group_$CLIENTGROUP \
+-clientwebgroup http://repo.iris.ac.uk/dune/glidein/clientwebgroup \
 -clientsigngroup c76a2c721e5a23651e64a74f8ebc6b2b7fa28023 \
 -clientdescriptgroup description.j7ifrG.cfg \
 -param_CONDOR_VERSION 8.dot,6.dot,3 \

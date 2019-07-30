@@ -1,0 +1,52 @@
+#!/bin/sh
+
+templatedir=/var/www/sites/repo.iris.ac.uk/dune/glidein/web/entry_UBoone_T2_UK_Manchester_ce02
+
+(
+
+cat <<EOF
+UBoone_T2_UK_Manchester_ce01 UK 3000 259200 UKI-NORTHGRID-MAN-HEP bohr3226.tier2.hep.manchester.ac.uk Manchester ce01.tier2.hep.manchester.ac.uk
+UBoone_T2_UK_Manchester_vac02 UK 3000 259200 UKI-NORTHGRID-MAN-HEP bohr3226.tier2.hep.manchester.ac.uk Manchester vac02.blackett.manchester.ac.uk
+EOF
+
+) | (
+
+while read entry country maxmemmbs max_walltime resourcename ses site gatekeeper 
+do
+  rm -Rf /var/www/sites/repo.iris.ac.uk/dune/glidein/web/entry_$entry
+  mkdir -p /var/www/sites/repo.iris.ac.uk/dune/glidein/web/entry_$entry
+  cd /var/www/sites/repo.iris.ac.uk/dune/glidein/web/entry_$entry
+  
+  cp /var/www/sites/repo.iris.ac.uk/dune/glidein/web/entry_UBoone_T2_UK_Manchester_ce02/* .
+
+cat <<EOF >constants.j7i2T0.cfg
+# File: constants.j7i2T0.cfg
+#
+GLEXEC_BIN 	NONE
+GLIDEIN_Country 	$country
+GLIDEIN_MaxMemMBs 	$maxmemmbs
+GLIDEIN_Max_Walltime 	$max_walltime
+GLIDEIN_ResourceName 	$resourcename
+GLIDEIN_REQUIRED_OS 	any
+GLIDEIN_SEs 	$ses
+GLIDEIN_Site 	$site
+GLIDEIN_Supported_VOs 	Microboone,DUNE
+GLIDEIN_Gatekeeper 	$gatekeeper
+GLIDEIN_GridType 	nordugrid
+GLIDEIN_REQUIRE_VOMS 	False
+GLIDEIN_REQUIRE_GLEXEC_USE 	False
+GLIDEIN_TrustDomain 	grid
+GLIDEIN_SupportedAuthenticationMethod 	grid_proxy
+GLIDEIN_GlobusRSL	(queue=medium)(count=1)(runtimeenvironment=ENV/GLITE)
+GLIDEIN_SlotsLayout 	fixed
+GLIDEIN_WorkDir 	.
+GLIDEIN_Verbosity 	std
+EOF
+
+  sed -i "s/^.* constants.j7i2T0.cfg$/`sha1sum constants.j7i2T0.cfg`/" signature.j7pbIp.sha1
+
+  echo $entry signentry is `sha1sum signature.j7pbIp.sha1 | cut -f1 -d' '`
+
+done
+
+)
