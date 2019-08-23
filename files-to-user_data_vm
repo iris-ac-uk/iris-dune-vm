@@ -3,17 +3,17 @@
 # Standard cloud-config sections edited by hand
 cp main-cloud-config tmp_cloud-config
 
-# Scripts included verbatim
-for i in glidein_startup.sh 
-do
- (
-   echo '  - owner: root:root'
-   echo "    path: /tmp/$i"
-   echo "    permissions: '0755'"
-   echo '    content: |'
-   sed 's/^/        /' $i
- ) >> tmp_cloud-config
-done
+## Scripts included verbatim
+#for i in glidein_startup.sh 
+#do
+# (
+#   echo '  - owner: root:root'
+#   echo "    path: /tmp/$i"
+#   echo "    permissions: '0755'"
+#   echo '    content: |'
+#   sed 's/^/        /' $i
+# ) >> tmp_cloud-config
+#done
 
 ./make_multipart_user_data		\
    comments:comment			\

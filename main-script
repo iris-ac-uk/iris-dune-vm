@@ -7,9 +7,37 @@ chmod ugo+rwxt /var/spool/joboutputs/
 (
 # Cloud Init should do this automatically but something has changed since cernvm3 -> cernvm4
 ls -l /root/.ssh/authorized_keys
-curl http://169.254.169.254/2009-04-04/meta-data/public-keys/0/openssh-key > /root/.ssh/authorized_keys
-echo >> /root/.ssh/authorized_keys
-ls -l /root/.ssh/authorized_keys
+if [ ! -s /root/.ssh/authorized_keys ] ; then
+  curl http://169.254.169.254/2009-04-04/meta-data/public-keys/0/openssh-key > /root/.ssh/authorized_keys
+  echo >> /root/.ssh/authorized_keys
+  ls -l /root/.ssh/authorized_keys
+fi
+
+# For the big 40GB+ logical partition
+mkdir -p /scratch
+
+# Find the largest unformatted partition on any device by trying to format them
+sfdisk -sldu M | grep '^/dev/.*size=' | sed 's:\(/dev/[a-z]*[0-9]*\) .*size= *\([0-9]*\).*:\2 \1:' | sort -nr | (
+while read size device
+do
+  mkfs -q -t ext4 $device
+  if [ $? = 0 ] ; then
+   # If we can make a new partition, then we use it
+   date --utc +"%Y-%m-%d %H:%M:%S %Z user_data_script Created $device for /scratch"
+   mount $device /scratch
+   break
+  fi
+done
+)
+
+# fallocate is almost instantaneous on ext4
+fallocate -l 3G /scratch/swapfile
+chmod 0600 /scratch/swapfile
+mkswap /scratch/swapfile
+swapon /scratch/swapfile
+sysctl vm.swappiness=1
+mkdir -p /scratch/condor/
+chown condor:condor /scratch/condor/
 
 cat <<EOF >/tmp/x509proxy.pem
 ##user_data_option_x509_proxy##
@@ -34,6 +62,14 @@ do
 done
 ) >/var/log/heartbeat.log 2>&1 &
 
+# Enable config-egi.egi.eu
+cat <<EOF >/etc/cvmfs/default.d/60-egi.conf
+CVMFS_CONFIG_REPOSITORY=config-egi.egi.eu
+EOF
+
+# Apply the CernVM-FS configuration changes
+cvmfs_config reload
+
 # Remove docker command etc since we don't start docker
 rpm --nodeps -e docker-cernvm
 
@@ -51,9 +87,6 @@ done
 # Set up standard WLCG WN things
 ln -s /cvmfs/grid.cern.ch/etc/grid-security/vomses /etc/vomses
 ln -s /cvmfs/grid.cern.ch/etc/grid-security/vomsdir /etc/grid-security/vomsdir
-#mkdir -p /etc/vomses
-#echo '"dune" "voms1.fnal.gov" "15042" "/DC=org/DC=incommon/C=US/ST=IL/L=Batavia/O=Fermi Research Alliance/OU=Fermilab/CN=voms1.fnal.gov" "dune" "24"' >/etc/vomses/dune-voms1.fnal.gov
-#echo '"dune" "voms2.fnal.gov" "15042" "/DC=org/DC=incommon/C=US/ST=IL/L=Batavia/O=Fermi Research Alliance/OU=Fermilab/CN=voms2.fnal.gov" "dune" "24"' >/etc/vomses/dune-voms2.fnal.gov
 ln -s /cvmfs/grid.cern.ch/umd-c7wn-latest/etc/profile.d/setup-c7-wn-example.sh /etc/profile.d/
 echo "export JOB_ID=$job_id QUEUE=##user_data_machinetype## GLOBUS_LOCATION=/cvmfs/grid.cern.ch/umd-c7wn-latest/usr" >/etc/profile.d/pilot.sh
 
@@ -69,16 +102,16 @@ voms-proxy-info -file $X509_USER_PROXY
 # Set up the pilot user which runs the pilot script
 useradd pilot
 mkdir -p /scratch/pilot/$job_id
-cp /tmp/glidein_startup.sh /scratch/pilot/$job_id
-#touch /scratch/pilot/.gahp_complete
+curl --capath /etc/grid-security/certificates https://repo.iris.ac.uk/dune/iris-dune-vm/glidein_startup.sh > /scratch/pilot/$job_id/glidein_startup.sh
+chmod +x /scratch/pilot/$job_id/glidein_startup.sh
 
 # Map Vac/Vcycle spaces to glidein entry names
 case "##user_data_space##" in
 *.manchester.ac.uk)
-#  ENTRY=UBoone_T2_UK_Manchester_ce02 
+#  ENTRY=UBoone_T2_UK_Manchester_ce01
 #  SIGNENTRY=13b2b07c86ee23f343e4b316a2ee3685fadc1885
-  ENTRY=UBoone_T2_UK_Manchester_ce01
-  SIGNENTRY=2aeb31ff7e31dd4ee6dc01b988c9930a0668cadf
+  ENTRY=UBoone_T2_UK_Manchester_ce02
+  SIGNENTRY=b0d578bc84318dcae81e4cb7c980627917f3594d
 #  ENTRY=UBoone_T2_UK_Manchester_vac02
 #  SIGNENTRY=68832e9c0d0d1dc447122944c92a04b0882b5dab
   CLIENTGROUP=dune_cern
@@ -105,23 +138,23 @@ export X509_USER_PROXY=/tmp/x509vomsproxy.pem
 -proxy None \
 -factory OSG \
 -web http://repo.iris.ac.uk/dune/glidein/web \
--sign e995388489352c8470dfd574e0868d56fbac1462 \
+-sign eb88f4057055de899698e7b6c0b9c2c1dd41779f \
 -signentry $SIGNENTRY \
 -signtype sha1 \
--descript description.j7pbIp.cfg \
--descriptentry description.j7pbIp.cfg \
+-descript description.j81aAK.cfg \
+-descriptentry description.j81aAK.cfg \
 -dir . \
 -param_GLIDEIN_Client gpfrontend01-fnal-gov_gWMSFrontend.$CLIENTGROUP \
 -submitcredid 67716 \
 -slotslayout fixed \
 -clientweb http://repo.iris.ac.uk/dune/glidein/clientweb \
--clientsign 8152d89119d4a8599e98fa6ad69f3cbffc16b6e8 \
+-clientsign becc2ad0f5ba634bb6c8b21eb88bace2c58072cf \
 -clientsigntype sha1 \
--clientdescript description.j7ifrG.cfg \
+-clientdescript description.j819gN.cfg \
 -clientgroup $CLIENTGROUP \
 -clientwebgroup http://repo.iris.ac.uk/dune/glidein/clientwebgroup \
--clientsigngroup c76a2c721e5a23651e64a74f8ebc6b2b7fa28023 \
--clientdescriptgroup description.j7ifrG.cfg \
+-clientsigngroup f380493293d8f2c3ca531ecb59ced8ebb2659007 \
+-clientdescriptgroup description.j819gN.cfg \
 -param_CONDOR_VERSION 8.dot,6.dot,3 \
 -param_GLIDEIN_Glexec_Use NEVER \
 -param_GLIDEIN_Job_Max_Time $wall_limit_secs \

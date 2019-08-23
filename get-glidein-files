@@ -3,10 +3,10 @@
 (
 
 cat <<EOF
-web http://gfactory-2.opensciencegrid.org/factory/stage j7pbIp
-web/entry_UBoone_T2_UK_Manchester_ce02 http://gfactory-2.opensciencegrid.org/factory/stage/entry_UBoone_T2_UK_Manchester_ce02 j7pbIp
-clientweb http://gpfrontend01.fnal.gov:8319/vofrontend/stage j7ifrG
-clientwebgroup http://gpfrontend01.fnal.gov:8319/vofrontend/stage/group_dune_cern j7ifrG
+web http://gfactory-2.opensciencegrid.org/factory/stage j81aAK
+web/entry_UBoone_T2_UK_Manchester_ce02 http://gfactory-2.opensciencegrid.org/factory/stage/entry_UBoone_T2_UK_Manchester_ce02 j81aAK
+clientweb http://gpfrontend01.fnal.gov:8319/vofrontend/stage j819gN
+clientwebgroup http://gpfrontend01.fnal.gov:8319/vofrontend/stage/group_dune_cern j819gN
 EOF
 
 ) | (
