@@ -102,84 +102,49 @@ voms-proxy-info -file $X509_USER_PROXY
 # Set up the pilot user which runs the pilot script
 useradd pilot
 mkdir -p /scratch/pilot/$job_id
-curl --capath /etc/grid-security/certificates https://repo.iris.ac.uk/dune/iris-dune-vm/glidein_startup.sh > /scratch/pilot/$job_id/glidein_startup.sh
-chmod +x /scratch/pilot/$job_id/glidein_startup.sh
-
-# Map Vac/Vcycle spaces to glidein entry names
+curl https://raw.githubusercontent.com/glideinWMS/glideinwms/master/tools/manual_glidein_startup > manual_glidein_startup
+chmod +x /scratch/pilot/$job_id/manual_glidein_startup
+#
+# Map Vac/Vcycle spaces to manual_glidein_startup parameters
+# These can be discovered with commands like:
+#   condor_status -pool gfactory-2.opensciencegrid.org -any -af ClientName ReqName | grep -i manchester
+#
 case "##user_data_space##" in
 *.manchester.ac.uk)
-#  ENTRY=UBoone_T2_UK_Manchester_ce01
-#  SIGNENTRY=13b2b07c86ee23f343e4b316a2ee3685fadc1885
-  ENTRY=UBoone_T2_UK_Manchester_ce02
-  SIGNENTRY=b0d578bc84318dcae81e4cb7c980627917f3594d
-#  ENTRY=UBoone_T2_UK_Manchester_vac02
-#  SIGNENTRY=68832e9c0d0d1dc447122944c92a04b0882b5dab
-  CLIENTGROUP=dune_cern
+  WMS_COLLECTOR=gfactory-2.opensciencegrid.org
+  CLIENT_NAME=gpfrontend01-fnal-gov_gWMSFrontend.dune_cern
+  REQ_NAME=UBoone_T2_UK_Manchester_ce02@gfactory_instance@OSG
   ;;
 *)
-  ENTRY=''
-  CLIENTGROUP=''
+  REQ_NAME=''
   ;;
 esac
 
-# -web http://gfactory-2.opensciencegrid.org/factory/stage \
-# -clientweb http://gpfrontend01.fnal.gov:8319/vofrontend/stage \
-# -clientwebgroup http://gpfrontend01.fnal.gov:8319/vofrontend/stage/group_$CLIENTGROUP \
+./manual_glidein_startup \
+  --wms-collector=$WMS_COLLECTOR \
+  --client-name=$CLIENT_NAME \
+  --req-name=$REQ_NAME \
+  --cmd-out-file=glidein_startup_wrapper \
+  --glidein-startup=./glidein_startup.sh
+
+#./manual_glidein_startup \
+#  --wms-collector=gfactory-2.opensciencegrid.org \
+#  --client-name=chtc2.main \
+#  --req-name=OSG_US_WSU_GRID_ce2@gfactory_instance@OSG \
+#  --cmd-out-file=glidein_startup_wrapper \
+#  --glidein-startup=./glidein_startup.sh
 
 cat <<EOF > /scratch/pilot/pilot.sh
 cd /scratch/pilot/$job_id
 export X509_USER_PROXY=/tmp/x509vomsproxy.pem
-/scratch/pilot/$job_id/glidein_startup.sh < /dev/null \
--v std \
--name ##user_data_machine_hostname##_$job_id \
--entry $ENTRY \
--clientname gpfrontend01-fnal-gov_gWMSFrontend.$CLIENTGROUP \
--schedd schedd_glideins4@gfactory-2.opensciencegrid.org \
--proxy None \
--factory OSG \
--web http://repo.iris.ac.uk/dune/glidein/web \
--sign eb88f4057055de899698e7b6c0b9c2c1dd41779f \
--signentry $SIGNENTRY \
--signtype sha1 \
--descript description.j81aAK.cfg \
--descriptentry description.j81aAK.cfg \
--dir . \
--param_GLIDEIN_Client gpfrontend01-fnal-gov_gWMSFrontend.$CLIENTGROUP \
--submitcredid 67716 \
--slotslayout fixed \
--clientweb http://repo.iris.ac.uk/dune/glidein/clientweb \
--clientsign becc2ad0f5ba634bb6c8b21eb88bace2c58072cf \
--clientsigntype sha1 \
--clientdescript description.j819gN.cfg \
--clientgroup $CLIENTGROUP \
--clientwebgroup http://repo.iris.ac.uk/dune/glidein/clientwebgroup \
--clientsigngroup f380493293d8f2c3ca531ecb59ced8ebb2659007 \
--clientdescriptgroup description.j819gN.cfg \
--param_CONDOR_VERSION 8.dot,6.dot,3 \
--param_GLIDEIN_Glexec_Use NEVER \
--param_GLIDEIN_Job_Max_Time $wall_limit_secs \
--param_SLOT_WEIGHT "ifThenElse.open,.nbsp,.open,Cpus.nbsp,.gt,.eq,.nbsp,ceiling.open,Memory/2048.dot,0.close,.close,.comma,.nbsp,Cpus.comma,.nbsp,Memory/2048.dot,0.close," \
--param_GLIDECLIENT_Rank 1 \
--param_GLIDEIN_Report_Failed NEVER \
--param_MIN_DISK_GBS 1 \
--param_GLIDEIN_Monitoring_Enabled False \
--param_CONDOR_OS default \
--param_HAS_USAGE_MODEL OFFSITE \
--param_UPDATE_COLLECTOR_WITH_TCP True \
--param_GLIDECLIENT_ReqNode gfactory.minus,2.dot,opensciencegrid.dot,org \
--param_USE_MATCH_AUTH True \
--param_CONDOR_ARCH default \
--param_FERMIHTC_DOCKER_CAPABLE False \
--param_GLIDEIN_Collector "gpcollector04.dot,fnal.dot,gov.colon,9620.minus,9625.semicolon,gpcollector03.dot,fnal.dot,gov.colon,9620.minus,9625" \
--cluster 496811 \
--subcluster 0 \
-1>/var/spool/joboutputs/glidein_startup.sh.stdout \
-2>/var/spool/joboutputs/glidein_startup.sh.stderr
+/scratch/pilot/$job_id/glidein_startup_wrapper < /dev/null \
+1>/var/spool/joboutputs/glidein_startup_wrapper.stdout \
+2>/var/spool/joboutputs/glidein_startup_wrapper.stderr
 EOF
-chmod +x /scratch/pilot/pilot.sh /scratch/pilot/$job_id/glidein_startup.sh
+chmod +x /scratch/pilot/pilot.sh
 chown -R pilot.pilot /scratch/pilot /tmp/x509vomsproxy.pem
 
-if [ "$ENTRY" != "" ] ; then
+if [ "$REQ_NAME" != "" ] ; then
   # Run the pilot script which in turn runs glidein_startup.sh
   /usr/bin/sudo -i -n -u pilot /scratch/pilot/pilot.sh 2>&1
 
