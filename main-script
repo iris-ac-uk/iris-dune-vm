@@ -89,12 +89,38 @@ ln -s /cvmfs/grid.cern.ch/etc/grid-security/vomses /etc/vomses
 ln -s /cvmfs/grid.cern.ch/etc/grid-security/vomsdir /etc/grid-security/vomsdir
 ln -s /cvmfs/grid.cern.ch/umd-c7wn-latest/etc/profile.d/setup-c7-wn-example.sh /etc/profile.d/
 echo "export JOB_ID=$job_id QUEUE=##user_data_machinetype## GLOBUS_LOCATION=/cvmfs/grid.cern.ch/umd-c7wn-latest/usr" >/etc/profile.d/pilot.sh
+. /etc/profile.d/setup-c7-wn-example.sh
 
 # Convert the generic X.509 proxy we have into a DUNE pilot proxy
 # by adding VOMS ACs to X.509 proxy 
-cp /tmp/x509proxy.pem /tmp/x509vomsproxy.pem
-chmod 0600 /tmp/x509vomsproxy.pem
-. /etc/profile.d/setup-c7-wn-example.sh
+
+# REINSTATE ONCE TEMP REMOVED
+#cp /tmp/x509proxy.pem /tmp/x509vomsproxy.pem
+#chmod 0600 /tmp/x509vomsproxy.pem
+
+(
+# TEMP: fetch proxy from myproxy
+#
+# Previously stored with something like:
+#
+# myproxy-init --certfile dune-pilot-proxy.pem \
+#              --keyfile dune-pilot-proxy.pem \
+#              --pshost myproxy.fnal.gov \
+#              --proxy_lifetime 168 \
+#              --retrievable_by_cert '/C=UK/O=eScience/OU=Manchester/L=HEP/CN=dune-vm.blackett.manchester.ac.uk' \
+#              --username '/C=UK/O=eScience/OU=Manchester/L=HEP/CN=dune-vm.blackett.manchester.ac.uk' \
+#              --no_passphrase \
+#              --verbose 
+#
+export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/cvmfs/grid.cern.ch/umd-c7ui-latest/usr/lib64"
+export X509_USER_PROXY=/tmp/x509proxy.pem
+myproxyname=`openssl x509 -in $X509_USER_PROXY -noout -subject | sed "s/^subject= //"`
+/cvmfs/grid.cern.ch/umd-c7ui-latest/usr/bin/myproxy-logon --username "$myproxyname" --no_passphrase --out /tmp/x509vomsproxy.pem -t 168
+if [ $? != 0 ] ; then
+  echo "No proxy fetched from myproxy!"
+fi
+)
+
 export X509_USER_PROXY=/tmp/x509vomsproxy.pem
 voms-proxy-init -noregen -valid 168:0 -voms dune:/dune/Role=pilot
 voms-proxy-info -file $X509_USER_PROXY
@@ -102,8 +128,16 @@ voms-proxy-info -file $X509_USER_PROXY
 # Set up the pilot user which runs the pilot script
 useradd pilot
 mkdir -p /scratch/pilot/$job_id
-curl https://raw.githubusercontent.com/glideinWMS/glideinwms/master/tools/manual_glidein_startup > manual_glidein_startup
-chmod +x /scratch/pilot/$job_id/manual_glidein_startup
+cd /scratch/pilot/$job_id
+# TODO: get this from somewhere more stable than the master in GitHub
+curl https://raw.githubusercontent.com/glideinWMS/glideinwms/master/tools/manual_glidein_startup \
+  > /scratch/pilot/$job_id/manual_glidein_startup
+
+curl --capath /etc/grid-security/certificates https://repo.iris.ac.uk/dune/iris-dune-vm/glidein_startup.sh \
+  > /scratch/pilot/$job_id/glidein_startup.sh
+
+chmod +x /scratch/pilot/$job_id/manual_glidein_startup \
+         /scratch/pilot/$job_id/glidein_startup.sh
 #
 # Map Vac/Vcycle spaces to manual_glidein_startup parameters
 # These can be discovered with commands like:
@@ -120,22 +154,15 @@ case "##user_data_space##" in
   ;;
 esac
 
-./manual_glidein_startup \
+/scratch/pilot/$job_id/manual_glidein_startup \
   --wms-collector=$WMS_COLLECTOR \
   --client-name=$CLIENT_NAME \
   --req-name=$REQ_NAME \
-  --cmd-out-file=glidein_startup_wrapper \
-  --glidein-startup=./glidein_startup.sh
-
-#./manual_glidein_startup \
-#  --wms-collector=gfactory-2.opensciencegrid.org \
-#  --client-name=chtc2.main \
-#  --req-name=OSG_US_WSU_GRID_ce2@gfactory_instance@OSG \
-#  --cmd-out-file=glidein_startup_wrapper \
-#  --glidein-startup=./glidein_startup.sh
+  --cmd-out-file=/scratch/pilot/$job_id/glidein_startup_wrapper \
+  --glidein-startup=/scratch/pilot/$job_id/glidein_startup.sh
 
 cat <<EOF > /scratch/pilot/pilot.sh
-cd /scratch/pilot/$job_id
+cd /scratch/pilot/$job_id/
 export X509_USER_PROXY=/tmp/x509vomsproxy.pem
 /scratch/pilot/$job_id/glidein_startup_wrapper < /dev/null \
 1>/var/spool/joboutputs/glidein_startup_wrapper.stdout \
@@ -165,6 +192,7 @@ cp -f /var/log/cloud-init*.log \
       /var/log/boot.log \
       /var/log/messages \
       /scratch/joblogs/* \
+      /scratch/pilot/pilot.sh \
       .
 for i in * 
 do 

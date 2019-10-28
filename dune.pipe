@@ -16,8 +16,7 @@
     "suffix": "vm-prod",
     "target_share": 1.0,
     "user_data": "https://repo.iris.ac.uk/dune/iris-dune-vm/user_data_vm",
-    "user_data_proxy": "false",
-    "user_data_file_x509_proxy": "dune-pilot-proxy.pem"
+    "user_data_proxy": "true"
    }
   ]
 }
