@@ -96,30 +96,15 @@ echo "export JOB_ID=$job_id QUEUE=##user_data_machinetype## GLOBUS_LOCATION=/cvm
 
 # REINSTATE ONCE TEMP REMOVED
 #cp /tmp/x509proxy.pem /tmp/x509vomsproxy.pem
-#chmod 0600 /tmp/x509vomsproxy.pem
 
-(
-# TEMP: fetch proxy from myproxy
-#
-# Previously stored with something like:
-#
-# myproxy-init --certfile dune-pilot-proxy.pem \
-#              --keyfile dune-pilot-proxy.pem \
-#              --pshost myproxy.fnal.gov \
-#              --proxy_lifetime 168 \
-#              --retrievable_by_cert '/C=UK/O=eScience/OU=Manchester/L=HEP/CN=dune-vm.blackett.manchester.ac.uk' \
-#              --username '/C=UK/O=eScience/OU=Manchester/L=HEP/CN=dune-vm.blackett.manchester.ac.uk' \
-#              --no_passphrase \
-#              --verbose 
-#
-export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/cvmfs/grid.cern.ch/umd-c7ui-latest/usr/lib64"
-export X509_USER_PROXY=/tmp/x509proxy.pem
-myproxyname=`openssl x509 -in $X509_USER_PROXY -noout -subject | sed "s/^subject= //"`
-/cvmfs/grid.cern.ch/umd-c7ui-latest/usr/bin/myproxy-logon --username "$myproxyname" --no_passphrase --out /tmp/x509vomsproxy.pem -t 168
-if [ $? != 0 ] ; then
-  echo "No proxy fetched from myproxy!"
-fi
-)
+# REMOVE curl LINE ONCE UNNECESSARY
+curl --capath /etc/grid-security/certificates/ \
+     --cert /tmp/x509proxy.pem \
+     --cacert /tmp/x509proxy.pem \
+     --location https://depo.gridpp.ac.uk/myproxy-dune/dune-pilot-proxy.pem \
+     >/tmp/x509vomsproxy.pem
+
+chmod 0600 /tmp/x509vomsproxy.pem
 
 export X509_USER_PROXY=/tmp/x509vomsproxy.pem
 voms-proxy-init -noregen -valid 168:0 -voms dune:/dune/Role=pilot
@@ -199,6 +184,9 @@ do
   curl --capath /etc/grid-security/certificates/ --cert /tmp/x509proxy.pem --cacert /tmp/x509proxy.pem --location --upload-file "$i" '##user_data_joboutputs_url##/'
   curl --capath /etc/grid-security/certificates/ --cert /tmp/x509proxy.pem --cacert /tmp/x509proxy.pem --location --upload-file "$i" "https://depo.gridpp.ac.uk/hosts/##user_data_space##/##user_data_machinetype##/##user_data_machine_hostname##/$job_id/"
 done
+
+## DURING TESTING
+#sleep 1234567890
 
 # Try normal shutdown
 shutdown -h now
